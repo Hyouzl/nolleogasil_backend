@@ -1,9 +1,9 @@
 package com.fourroro.nolleogasil_backend.controller.users;
 
+import com.fourroro.nolleogasil_backend.auth.jwt.util.TokenProvider;
 import com.fourroro.nolleogasil_backend.dto.users.KakaoDto;
 import com.fourroro.nolleogasil_backend.dto.users.UsersDto;
 import com.fourroro.nolleogasil_backend.entity.users.Users;
-import com.fourroro.nolleogasil_backend.service.users.KakaoService;
 import com.fourroro.nolleogasil_backend.service.users.UsersServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -25,11 +24,10 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@EnableRedisHttpSession
 @RequestMapping("/api/user")
 public class UsersController {
     private final UsersServiceImpl usersService;
-    private final KakaoService kakaoService;
+    private final TokenProvider tokenProvider;
 
     //회원가입 및 로그인
     @PostMapping("/profile")
@@ -107,26 +105,35 @@ public class UsersController {
         }
     }
 
+/*
     @GetMapping("/callback")
     public KakaoDto getKakaoAccount(@RequestParam("code") String code){
         log.debug("code = {}", code);
         return kakaoService.getInfo(code).getKakaoDto();
     }
+*/
 
     @GetMapping("/info")
-    public ResponseEntity<UsersDto> getUserInfo(@RequestParam String email){
-        Users users = usersService.findUsersByEmail(email);
-        UsersDto userInfo = UsersDto.changeToDto(users);
+    public ResponseEntity<UsersDto> getUserInfo(@RequestParam Long usersId){
+        try {
+            Users users = usersService.findByUsersId(usersId);
+            UsersDto usersDto = UsersDto.changeToDto(users);
+            return ResponseEntity.ok(usersDto);
+        } catch(Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
 
-        return ResponseEntity.ok(userInfo);
     }
 
     //회원정보 수정
-    @GetMapping("/info/{usersId}")
-    public ResponseEntity<UsersDto> updateForm(HttpSession session, @PathVariable Long usersId){
+    @PatchMapping("/info/{usersId}")
+    public ResponseEntity<UsersDto> updateForm(@PathVariable Long usersId,
+                                               @RequestParam(name = "nickname") String nickname){
 
         try {
-            Users users = usersService.findUsers(usersId);
+            usersService.updateUsers(nickname, usersId);
+            Users users = usersService.findByUsersId(usersId);
             UsersDto usersDto = UsersDto.changeToDto(users);
             if (usersDto != null) { //회원 정보 존재 시
                 return ResponseEntity.ok(usersDto);
